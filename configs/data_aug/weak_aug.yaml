@@ -1,0 +1,49 @@
+# Weak, action-consistent augmentation for broad pretraining.
+# Implemented online in:
+# - examples/SimplerEnv/train_files/data_registry/data_config.py
+# - examples/LIBERO/train_files/data_registry/data_config.py
+# - examples/Robotwin/train_files/data_registry/data_config.py
+# All transforms must preserve observation-action alignment.
+
+visual:
+  enabled: true
+  resize:
+    enabled: true
+    height: 224
+    width: 224
+    interpolation: linear
+  color_jitter:
+    enabled: true
+    brightness: 0.15
+    contrast: 0.15
+    saturation: 0.10
+    hue: 0.02
+  gaussian_blur:
+    enabled: false
+    prob: 0.10
+    kernel_size: 3
+  gaussian_noise:
+    enabled: false
+    prob: 0.10
+    std: 0.01
+  jpeg_compression:
+    enabled: false
+    prob: 0.10
+    quality_min: 70
+    quality_max: 100
+  random_resized_crop:
+    enabled: false
+    prob: 0.10
+    scale_min: 0.90
+    scale_max: 1.00
+  random_erasing:
+    enabled: false
+
+language:
+  enabled: false
+
+temporal:
+  enabled: false
+
+sampling:
+  strategy: uniform

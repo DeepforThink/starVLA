@@ -3,7 +3,29 @@
 from starVLA.dataloader.gr00t_lerobot.datasets import ModalityConfig
 from starVLA.dataloader.gr00t_lerobot.transform.base import ComposedModalityTransform
 from starVLA.dataloader.gr00t_lerobot.transform.state_action import StateActionToTensor, StateActionTransform
+from starVLA.dataloader.gr00t_lerobot.transform.video import (
+    VideoColorJitter,
+    VideoResize,
+    VideoToNumpy,
+    VideoToTensor,
+)
 from starVLA.dataloader.gr00t_lerobot.embodiment_tags import EmbodimentTag
+
+
+def weak_pretrain_video_transforms(video_keys):
+    """Conservative visual augmentation for RobotWin/Agilex pretraining."""
+    return [
+        VideoToTensor(apply_to=video_keys),
+        VideoResize(apply_to=video_keys, height=224, width=224, interpolation="linear"),
+        VideoColorJitter(
+            apply_to=video_keys,
+            brightness=0.12,
+            contrast=0.12,
+            saturation=0.08,
+            hue=0.01,
+        ),
+        VideoToNumpy(apply_to=video_keys),
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -31,6 +53,7 @@ class AgilexDataConfig:
 
     def transform(self):
         return ComposedModalityTransform(transforms=[
+            *weak_pretrain_video_transforms(self.video_keys),
             StateActionToTensor(apply_to=self.state_keys),
             StateActionTransform(
                 apply_to=self.state_keys,
@@ -58,6 +81,7 @@ class AgilexData50Config(AgilexDataConfig):
 
     def transform(self):
         return ComposedModalityTransform(transforms=[
+            *weak_pretrain_video_transforms(self.video_keys),
             StateActionToTensor(apply_to=self.state_keys),
             StateActionTransform(
                 apply_to=self.state_keys,
@@ -101,6 +125,7 @@ class ArxX5DataConfig:
 
     def transform(self):
         return ComposedModalityTransform(transforms=[
+            *weak_pretrain_video_transforms(self.video_keys),
             StateActionToTensor(apply_to=self.state_keys),
             StateActionTransform(
                 apply_to=self.state_keys,

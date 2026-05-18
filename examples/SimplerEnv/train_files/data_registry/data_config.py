@@ -9,12 +9,27 @@ from starVLA.dataloader.gr00t_lerobot.transform.state_action import (
 )
 from starVLA.dataloader.gr00t_lerobot.transform.video import (
     VideoColorJitter,
-    VideoCrop,
     VideoResize,
     VideoToNumpy,
     VideoToTensor,
 )
 from starVLA.dataloader.gr00t_lerobot.embodiment_tags import EmbodimentTag
+
+
+def weak_pretrain_video_transforms(video_keys):
+    """Action-consistent visual augmentation for OXE-style pretraining data."""
+    return [
+        VideoToTensor(apply_to=video_keys),
+        VideoResize(apply_to=video_keys, height=224, width=224, interpolation="linear"),
+        VideoColorJitter(
+            apply_to=video_keys,
+            brightness=0.15,
+            contrast=0.15,
+            saturation=0.10,
+            hue=0.02,
+        ),
+        VideoToNumpy(apply_to=video_keys),
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -51,11 +66,7 @@ class OxeDroidDataConfig:
 
     def transform(self):
         return ComposedModalityTransform(transforms=[
-            VideoToTensor(apply_to=self.video_keys),
-            VideoCrop(apply_to=self.video_keys, scale=0.95),
-            VideoResize(apply_to=self.video_keys, height=224, width=224, interpolation="linear"),
-            VideoColorJitter(apply_to=self.video_keys, brightness=0.3, contrast=0.4, saturation=0.5, hue=0.08),
-            VideoToNumpy(apply_to=self.video_keys),
+            *weak_pretrain_video_transforms(self.video_keys),
             StateActionToTensor(apply_to=self.state_keys),
             StateActionTransform(
                 apply_to=self.state_keys,
@@ -106,6 +117,7 @@ class OxeBridgeDataConfig:
 
     def transform(self):
         return ComposedModalityTransform(transforms=[
+            *weak_pretrain_video_transforms(self.video_keys),
             StateActionToTensor(apply_to=self.state_keys),
             StateActionTransform(
                 apply_to=self.state_keys,
@@ -149,6 +161,7 @@ class OxeRT1DataConfig:
 
     def transform(self):
         return ComposedModalityTransform(transforms=[
+            *weak_pretrain_video_transforms(self.video_keys),
             StateActionToTensor(apply_to=self.state_keys),
             StateActionTransform(
                 apply_to=self.state_keys,
