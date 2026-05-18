@@ -7,9 +7,9 @@ is_debug: false
 version_id: "0.21"
 
 framework:
-  name: QwenGR00T
+  name: QwenOFT
   qwenvl:
-    base_vlm: ./playground/Pretrained_models/Qwen3-VL-4B-Instruct
+    base_vlm: ./playground/Pretrained_models/Qwen3.5-4B
     attn_implementation: flash_attention_2
     vl_hidden_dim: 2048
   action_model:
@@ -28,7 +28,7 @@ datasets:
     max_pixels: 307200
     min_pixels: 784
     model_max_length: 2048
-    model_type: qwen2.5vl
+    model_type: qwen3.5vl
     per_device_batch_size: 4
 
   vla_data:

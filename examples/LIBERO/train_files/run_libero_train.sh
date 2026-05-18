@@ -10,14 +10,14 @@ export NCCL_TIMEOUT=10000  # timeout set to 1 hour (unit: seconds)
 export NCCL_SOCKET_TIMEOUT_MS=360000
 ###########################################################################################
 # === Please modify the following paths according to your environment ===
-Framework_name=QwenPI
+Framework_name=QwenOFT
 freeze_module_list=''
-base_vlm=playground/Pretrained_models/Qwen3.5-0.8B
+base_vlm=playground/Pretrained_models/Qwen3.5-4B
 config_yaml=./examples/LIBERO/train_files/starvla_cotrain_libero.yaml
 libero_data_root=playground/Datasets/LEROBOT_LIBERO_DATA
 data_mix=libero_all
 run_root_dir=./playground/Checkpoints
-run_id=1229_libero4in1_qwen3oft
+run_id=05182048
 # === End of environment variable configuration ===
 ###########################################################################################
 
@@ -30,7 +30,8 @@ mkdir -p ${output_dir}
 cp $0 ${output_dir}/
 
 
-num_processes=${NUM_PROCESSES:-$(nvidia-smi -L | wc -l)}
+# num_processes=${NUM_PROCESSES:-$(nvidia-smi -L | wc -l)}
+num_processes=8
 
 accelerate launch \
   --config_file starVLA/config/deepseeds/deepspeed_zero2.yaml \
@@ -51,7 +52,7 @@ accelerate launch \
   --run_root_dir ${run_root_dir} \
   --run_id ${run_id} \
   --wandb_project starVLA_Libero \
-  --wandb_entity jinhuiye \
+  --wandb_entity hms_project \
   # --is_debug True
 
 
