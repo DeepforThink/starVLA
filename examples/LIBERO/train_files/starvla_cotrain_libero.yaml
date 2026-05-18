@@ -1,8 +1,8 @@
 run_id: starvla
 run_root_dir: playground/Checkpoints
 seed: 42
-wandb_entity: your_wandb_entity
-wandb_project: llavavla
+wandb_entity: hms_project
+wandb_project: starvla-libero
 is_debug: false
 version_id: "0.21"
 
