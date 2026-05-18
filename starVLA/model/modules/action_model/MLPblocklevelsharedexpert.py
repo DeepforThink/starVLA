@@ -156,12 +156,9 @@ class MoEResNetBlockWithSharedExpert(nn.Module):
             gate = router_probs  # (N, K)
 
         # ---- task expert combination ----
-        task_out = torch.zeros(N, D, device=x.device, dtype=x.dtype)
-        for k in range(self.num_experts):
-            mask = gate[:, k] > 0
-            if mask.any():
-                expert_out = self.experts[k](x[mask])
-                task_out[mask] += gate[mask, k:k + 1] * expert_out
+        # Dense expert evaluation avoids per-expert mask.any() CUDA syncs.
+        expert_outputs = torch.stack([expert(x) for expert in self.experts], dim=1)
+        task_out = (expert_outputs * gate.unsqueeze(-1)).sum(dim=1)
 
         # ---- shared expert (always on) ----
         if self.use_shared_expert and self.shared_expert is not None:

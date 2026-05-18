@@ -381,13 +381,25 @@ class VLATrainer(TrainerUtils):
             if self.config.trainer.gradient_clipping is not None:
                 self.accelerator.clip_grad_norm_(self.model.parameters(), self.config.trainer.gradient_clipping)
 
-            # ---- MoE router gradient monitoring ----
+            # Keep this scoped to the action head. Iterating over the full
+            # VLM under ZeRO-2 is very expensive for large Qwen backbones.
             router_grad_norm = 0.0
             router_grad_count = 0
-            for name, p in self.model.named_parameters():
-                if "router" in name and p.grad is not None:
-                    router_grad_norm += p.grad.detach().float().norm().item()
-                    router_grad_count += 1
+            shared_expert_grad_norm = 0.0
+            shared_expert_grad_count = 0
+            unwrapped_model = self.accelerator.unwrap_model(self.model)
+            action_model = getattr(unwrapped_model, "action_model", None)
+            if action_model is not None:
+                for name, p in action_model.named_parameters():
+                    if p.grad is None:
+                        continue
+                    grad_norm = p.grad.detach().float().norm().item()
+                    if "router" in name:
+                        router_grad_norm += grad_norm
+                        router_grad_count += 1
+                    elif "shared_expert" in name:
+                        shared_expert_grad_norm += grad_norm
+                        shared_expert_grad_count += 1
 
             self.optimizer.step()
             # Only step the LR scheduler when gradients are actually synced
@@ -405,7 +417,9 @@ class VLATrainer(TrainerUtils):
         if aux_loss is not None:
             metrics["loss/aux_moe"] = aux_loss.item()
         if router_grad_count > 0:
-            metrics["moe/router_grad_norm"] = router_grad_norm / router_grad_count
+            metrics["sharedexpert/router_grad_norm"] = router_grad_norm / router_grad_count
+        if shared_expert_grad_count > 0:
+            metrics["sharedexpert/shared_expert_grad_norm"] = shared_expert_grad_norm / shared_expert_grad_count
         for k, v in output_dict.items():
             if k.startswith("moe/"):
                 metrics[k] = v.detach().float().mean().item()

@@ -384,12 +384,18 @@ class VLATrainer(TrainerUtils):
                 self.accelerator.clip_grad_norm_(self.model.parameters(), self.config.trainer.gradient_clipping)
 
             # ---- MoE router gradient monitoring ----
+            # Only inspect the action head. Walking every parameter of the
+            # wrapped 4B VLM under ZeRO is very expensive and can make the
+            # first step look like it is hanging before tqdm advances.
             router_grad_norm = 0.0
             router_grad_count = 0
-            for name, p in self.model.named_parameters():
-                if "router" in name and p.grad is not None:
-                    router_grad_norm += p.grad.detach().float().norm().item()
-                    router_grad_count += 1
+            unwrapped_model = self.accelerator.unwrap_model(self.model)
+            action_model = getattr(unwrapped_model, "action_model", None)
+            if action_model is not None:
+                for name, p in action_model.named_parameters():
+                    if "router" in name and p.grad is not None:
+                        router_grad_norm += p.grad.detach().float().norm().item()
+                        router_grad_count += 1
 
             self.optimizer.step()
             # Only step the LR scheduler when gradients are actually synced

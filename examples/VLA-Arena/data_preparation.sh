@@ -36,8 +36,8 @@ mkdir -p "$DEST/vla_arena"
 python -m pip install -U "huggingface-hub==0.35.3"
 
 for repo in \
-  # VLA-Arena/VLA_Arena_L0_L_lerobot_openpi \
   VLA-Arena/VLA_Arena_L0_M_lerobot_openpi \
+  # VLA-Arena/VLA_Arena_L0_M_lerobot_openpi \
   # VLA-Arena/VLA_Arena_L0_S_lerobot_openpi
 do
   hf download "$repo" --repo-type dataset --local-dir "$DEST/vla_arena/${repo##*/}"
@@ -48,8 +48,8 @@ ln -sfn "$DEST/vla_arena"       "$CUR/playground/Datasets/VLA_ARENA_LEROBOT_DATA
 
 ## copy modality.json into each dataset's meta/ directory
 for dataset in \
-  # VLA_Arena_L0_L_lerobot_openpi \
   VLA_Arena_L0_M_lerobot_openpi \
+  # VLA_Arena_L0_M_lerobot_openpi \
   # VLA_Arena_L0_S_lerobot_openpi
 do
   cp "$CUR/examples/VLA-Arena/train_files/modality.json" \

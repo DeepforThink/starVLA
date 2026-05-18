@@ -133,15 +133,14 @@ class MoEMLPResNetBlock(nn.Module):
             gate = torch.zeros(N, self.num_experts, device=x.device, dtype=x.dtype)
             gate.scatter_(1, topk_indices, topk_weights)  # (N, K)
 
-            # experts receive raw x (ExpertBlock has its own LN)
-            combined = torch.zeros(N, D, device=x.device, dtype=x.dtype)
-            for k in range(self.num_experts):
-                mask = gate[:, k] > 0  # tokens routed to expert k
-                if mask.any():
-                    expert_out = self.experts[k](x[mask])              # (M, D)
-                    combined[mask] += gate[mask, k:k + 1] * expert_out  # (M, D)
-
-            output = combined
+            # Compute all experts in one batched expression and zero out
+            # non-top-k experts through the gate. This is mathematically
+            # equivalent to sparse routing for small expert counts, while
+            # avoiding Python-side CUDA syncs from mask.any()/advanced indexing.
+            expert_outputs = torch.stack(
+                [expert(x) for expert in self.experts], dim=1
+            )  # (N, K, D)
+            output = (expert_outputs * gate.unsqueeze(-1)).sum(dim=1)  # (N, D)
         else:
             # dense soft-MoE: every token goes through every expert
             expert_outputs = torch.stack(
