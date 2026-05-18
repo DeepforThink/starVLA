@@ -2,6 +2,7 @@
 
 from starVLA.dataloader.gr00t_lerobot.datasets import ModalityConfig
 from starVLA.dataloader.gr00t_lerobot.transform.base import ComposedModalityTransform
+from starVLA.dataloader.gr00t_lerobot.transform.language import LanguageParaphraseTransform
 from starVLA.dataloader.gr00t_lerobot.transform.state_action import StateActionToTensor, StateActionTransform
 from starVLA.dataloader.gr00t_lerobot.transform.video import (
     VideoColorJitter,
@@ -72,6 +73,11 @@ class Libero4in1DataConfig:
     def transform(self):
         return ComposedModalityTransform(transforms=[
             *weak_pretrain_video_transforms(self.video_keys),
+            LanguageParaphraseTransform(
+                apply_to=self.language_keys,
+                paraphrase_json="configs/data_aug/libero_language_paraphrases.json",
+                p=0.5,
+            ),
             StateActionToTensor(apply_to=self.action_keys),
             StateActionTransform(
                 apply_to=self.action_keys,

@@ -1,0 +1,205 @@
+{
+  "schema_version": 1,
+  "enabled": true,
+  "purpose": "Reviewed safe paraphrase candidates for LIBERO language augmentation.",
+  "selection_policy": "During training, sample either the original instruction or one paraphrase. Keep evaluation unchanged.",
+  "preserve_constraints": [
+    "Do not change object names.",
+    "Do not change target receptacles or locations.",
+    "Do not change left/right/front/back/top/bottom/middle relations.",
+    "Do not change multi-step order.",
+    "Do not introduce new objects."
+  ],
+  "verb_templates": {
+    "pick_up_and_place": [
+      "grasp {object} and place it {target}",
+      "take {object} and put it {target}"
+    ],
+    "put": [
+      "place {object} {target}",
+      "move {object} {target}"
+    ],
+    "open": [
+      "pull open {object}",
+      "open {object}"
+    ],
+    "push": [
+      "move {object} by pushing it {target}",
+      "push {object} {target}"
+    ],
+    "turn_on": [
+      "switch on {object}",
+      "turn {object} on"
+    ]
+  },
+  "task_paraphrases": {
+    "libero_spatial_no_noops_1.0.0_lerobot": {
+      "pick up the black bowl next to the cookie box and place it on the plate": [
+        "grasp the black bowl next to the cookie box and place it on the plate",
+        "take the black bowl next to the cookie box and put it on the plate"
+      ],
+      "pick up the black bowl in the top drawer of the wooden cabinet and place it on the plate": [
+        "grasp the black bowl in the top drawer of the wooden cabinet and place it on the plate",
+        "take the black bowl in the top drawer of the wooden cabinet and put it on the plate"
+      ],
+      "pick up the black bowl on the ramekin and place it on the plate": [
+        "grasp the black bowl on the ramekin and place it on the plate",
+        "take the black bowl on the ramekin and put it on the plate"
+      ],
+      "pick up the black bowl on the stove and place it on the plate": [
+        "grasp the black bowl on the stove and place it on the plate",
+        "take the black bowl on the stove and put it on the plate"
+      ],
+      "pick up the black bowl between the plate and the ramekin and place it on the plate": [
+        "grasp the black bowl between the plate and the ramekin and place it on the plate",
+        "take the black bowl between the plate and the ramekin and put it on the plate"
+      ],
+      "pick up the black bowl on the cookie box and place it on the plate": [
+        "grasp the black bowl on the cookie box and place it on the plate",
+        "take the black bowl on the cookie box and put it on the plate"
+      ],
+      "pick up the black bowl next to the plate and place it on the plate": [
+        "grasp the black bowl next to the plate and place it on the plate",
+        "take the black bowl next to the plate and put it on the plate"
+      ],
+      "pick up the black bowl next to the ramekin and place it on the plate": [
+        "grasp the black bowl next to the ramekin and place it on the plate",
+        "take the black bowl next to the ramekin and put it on the plate"
+      ],
+      "pick up the black bowl from table center and place it on the plate": [
+        "grasp the black bowl from table center and place it on the plate",
+        "take the black bowl from table center and put it on the plate"
+      ],
+      "pick up the black bowl on the wooden cabinet and place it on the plate": [
+        "grasp the black bowl on the wooden cabinet and place it on the plate",
+        "take the black bowl on the wooden cabinet and put it on the plate"
+      ]
+    },
+    "libero_object_no_noops_1.0.0_lerobot": {
+      "pick up the orange juice and place it in the basket": [
+        "grasp the orange juice and place it in the basket",
+        "take the orange juice and put it in the basket"
+      ],
+      "pick up the ketchup and place it in the basket": [
+        "grasp the ketchup and place it in the basket",
+        "take the ketchup and put it in the basket"
+      ],
+      "pick up the cream cheese and place it in the basket": [
+        "grasp the cream cheese and place it in the basket",
+        "take the cream cheese and put it in the basket"
+      ],
+      "pick up the bbq sauce and place it in the basket": [
+        "grasp the bbq sauce and place it in the basket",
+        "take the bbq sauce and put it in the basket"
+      ],
+      "pick up the alphabet soup and place it in the basket": [
+        "grasp the alphabet soup and place it in the basket",
+        "take the alphabet soup and put it in the basket"
+      ],
+      "pick up the milk and place it in the basket": [
+        "grasp the milk and place it in the basket",
+        "take the milk and put it in the basket"
+      ],
+      "pick up the salad dressing and place it in the basket": [
+        "grasp the salad dressing and place it in the basket",
+        "take the salad dressing and put it in the basket"
+      ],
+      "pick up the butter and place it in the basket": [
+        "grasp the butter and place it in the basket",
+        "take the butter and put it in the basket"
+      ],
+      "pick up the tomato sauce and place it in the basket": [
+        "grasp the tomato sauce and place it in the basket",
+        "take the tomato sauce and put it in the basket"
+      ],
+      "pick up the chocolate pudding and place it in the basket": [
+        "grasp the chocolate pudding and place it in the basket",
+        "take the chocolate pudding and put it in the basket"
+      ]
+    },
+    "libero_goal_no_noops_1.0.0_lerobot": {
+      "put the bowl on the plate": [
+        "place the bowl on the plate",
+        "move the bowl onto the plate"
+      ],
+      "put the wine bottle on the rack": [
+        "place the wine bottle on the rack",
+        "move the wine bottle onto the rack"
+      ],
+      "open the top drawer and put the bowl inside": [
+        "pull open the top drawer and place the bowl inside",
+        "open the top drawer and move the bowl inside"
+      ],
+      "put the cream cheese in the bowl": [
+        "place the cream cheese in the bowl",
+        "move the cream cheese into the bowl"
+      ],
+      "put the wine bottle on top of the cabinet": [
+        "place the wine bottle on top of the cabinet",
+        "move the wine bottle onto the top of the cabinet"
+      ],
+      "push the plate to the front of the stove": [
+        "move the plate to the front of the stove by pushing it",
+        "push the plate toward the front of the stove"
+      ],
+      "turn on the stove": [
+        "switch on the stove",
+        "turn the stove on"
+      ],
+      "put the bowl on the stove": [
+        "place the bowl on the stove",
+        "move the bowl onto the stove"
+      ],
+      "put the bowl on top of the cabinet": [
+        "place the bowl on top of the cabinet",
+        "move the bowl onto the top of the cabinet"
+      ],
+      "open the middle drawer of the cabinet": [
+        "pull open the middle drawer of the cabinet",
+        "open the cabinet's middle drawer"
+      ]
+    },
+    "libero_10_no_noops_1.0.0_lerobot": {
+      "put the white mug on the left plate and put the yellow and white mug on the right plate": [
+        "place the white mug on the left plate and place the yellow and white mug on the right plate",
+        "move the white mug onto the left plate and move the yellow and white mug onto the right plate"
+      ],
+      "put the white mug on the plate and put the chocolate pudding to the right of the plate": [
+        "place the white mug on the plate and place the chocolate pudding to the right of the plate",
+        "move the white mug onto the plate and move the chocolate pudding to the right of the plate"
+      ],
+      "put the yellow and white mug in the microwave and close it": [
+        "place the yellow and white mug in the microwave and close it",
+        "move the yellow and white mug into the microwave and close it"
+      ],
+      "turn on the stove and put the moka pot on it": [
+        "switch on the stove and place the moka pot on it",
+        "turn the stove on and move the moka pot onto it"
+      ],
+      "put both the alphabet soup and the cream cheese box in the basket": [
+        "place both the alphabet soup and the cream cheese box in the basket",
+        "move both the alphabet soup and the cream cheese box into the basket"
+      ],
+      "put both the alphabet soup and the tomato sauce in the basket": [
+        "place both the alphabet soup and the tomato sauce in the basket",
+        "move both the alphabet soup and the tomato sauce into the basket"
+      ],
+      "put both moka pots on the stove": [
+        "place both moka pots on the stove",
+        "move both moka pots onto the stove"
+      ],
+      "put both the cream cheese box and the butter in the basket": [
+        "place both the cream cheese box and the butter in the basket",
+        "move both the cream cheese box and the butter into the basket"
+      ],
+      "put the black bowl in the bottom drawer of the cabinet and close it": [
+        "place the black bowl in the bottom drawer of the cabinet and close it",
+        "move the black bowl into the bottom drawer of the cabinet and close it"
+      ],
+      "pick up the book and place it in the back compartment of the caddy": [
+        "grasp the book and place it in the back compartment of the caddy",
+        "take the book and put it in the back compartment of the caddy"
+      ]
+    }
+  }
+}
