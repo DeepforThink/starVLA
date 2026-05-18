@@ -139,17 +139,9 @@ class MoELinearResNetBlock(nn.Module):
         if self.top_k is not None:
             # ---- sparse top-k routing ----
             topk_vals, topk_idx = router_logits.topk(self.top_k, dim=-1)  # (N, top_k)
-
-            # Build sparse gate: zero out non-top-k, then renormalise
-            topk_probs = torch.zeros_like(router_probs)                   # (N, K)
-            topk_probs.scatter_(1, topk_idx, topk_vals)                   # keep raw logits at top-k slots
-            # Subtract max for numerical stability before softmax (top-k only)
-            max_logits = topk_probs.max(dim=-1, keepdim=True).values       # (N, 1)
-            # where all zero, keep max_logits=0 to avoid NaN in softmax
-            gate = F.softmax(
-                torch.where(topk_probs > 0, topk_probs, torch.full_like(topk_probs, -1e9)),
-                dim=-1,
-            )  # (N, K)  renormalised over top-k entries only
+            topk_weights = F.softmax(topk_vals, dim=-1)                    # re-normalise over selected
+            gate = torch.zeros_like(router_probs)                           # (N, K)
+            gate.scatter_(1, topk_idx, topk_weights)                        # place weights at top-k slots
         else:
             # ---- dense soft-MoE ----
             gate = router_probs  # (N, K)
@@ -165,9 +157,17 @@ class MoELinearResNetBlock(nn.Module):
         # Shared activation after weighted combination
         out = self.act(combined)  # (N, D)
 
-        # ---- load-balancing auxiliary loss ----
+        # ---- no-gradient monitoring stats ----
         with torch.no_grad():
-            expert_importance = router_probs.mean(dim=0)  # (K,)
+            self.router_entropy = -(router_probs * (router_probs + 1e-9).log()).sum(dim=-1).mean()
+            self.expert_prob_mean = router_probs.mean(dim=0)
+            if self.top_k is not None:
+                self.expert_usage = (gate > 0).float().mean(dim=0)
+            else:
+                self.expert_usage = router_probs.mean(dim=0)
+
+        # ---- load-balancing auxiliary loss ----
+        expert_importance = router_probs.mean(dim=0)  # (K,)
         target = torch.full_like(expert_importance, 1.0 / self.num_experts)
         balance_loss = ((expert_importance - target) ** 2).sum()
         self.aux_loss = self.balance_loss_weight * balance_loss
@@ -303,6 +303,22 @@ class L1RegressionActionHead(nn.Module):
         if self.use_moe and hasattr(self.model, "aux_loss"):
             return self.model.aux_loss
         return None
+
+    def get_moe_metrics(self) -> dict:
+        """Collect no-gradient monitoring metrics from all MoE blocks."""
+        if not self.use_moe or not hasattr(self.model, "moe_blocks"):
+            return {}
+        metrics = {}
+        for i, block in enumerate(self.model.moe_blocks):
+            if hasattr(block, "router_entropy"):
+                metrics[f"moe/block_{i}/router_entropy"] = block.router_entropy.detach()
+            if hasattr(block, "expert_prob_mean"):
+                for j, v in enumerate(block.expert_prob_mean.detach()):
+                    metrics[f"moe/block_{i}/expert_{j}_prob"] = v
+            if hasattr(block, "expert_usage"):
+                for j, v in enumerate(block.expert_usage.detach()):
+                    metrics[f"moe/block_{i}/expert_{j}_usage"] = v
+        return metrics
 
 
 # ────────────────────────────────────────────────────────────────────

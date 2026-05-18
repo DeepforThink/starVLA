@@ -224,6 +224,9 @@ class Qwenvl_OFT_LinearMoE(baseframework):
         result = {"action_loss": action_loss}
         if aux_loss is not None:
             result["aux_loss"] = aux_loss
+        if hasattr(self.action_model, "get_moe_metrics"):
+            moe_metrics = self.action_model.get_moe_metrics()
+            result.update(moe_metrics)
         return result
 
     @torch.inference_mode()

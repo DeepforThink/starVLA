@@ -346,6 +346,14 @@ class VLAMTrainer(TrainerUtils):
             if self.config.trainer.gradient_clipping is not None:
                 self.accelerator.clip_grad_norm_(self.model.parameters(), self.config.trainer.gradient_clipping)
 
+            # ---- MoE router gradient monitoring ----
+            router_grad_norm = 0.0
+            router_grad_count = 0
+            for name, p in self.model.named_parameters():
+                if "router" in name and p.grad is not None:
+                    router_grad_norm += p.grad.detach().float().norm().item()
+                    router_grad_count += 1
+
             self.optimizer.step()
             # Only step the LR scheduler when gradients are actually synced.
             # See train_starvla.py for full explanation.
@@ -354,10 +362,18 @@ class VLAMTrainer(TrainerUtils):
 
             log_dict.update(
                 {
-                    "action_dit_loss": action_loss.item(),
-                    "vlm_loss": vlm_loss.item(),
+                    "loss/total": total_loss.item(),
+                    "loss/action": action_loss.item(),
+                    "loss/vlm": vlm_loss.item(),
                 }
             )
+            if aux_loss is not None:
+                log_dict["loss/aux_moe"] = aux_loss.item()
+            if router_grad_count > 0:
+                log_dict["moe/router_grad_norm"] = router_grad_norm / router_grad_count
+            for k, v in output_dict.items():
+                if k.startswith("moe/"):
+                    log_dict[k] = v.detach().float().mean().item()
 
         return log_dict
 
