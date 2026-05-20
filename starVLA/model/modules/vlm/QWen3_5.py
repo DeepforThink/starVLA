@@ -17,6 +17,8 @@ except ImportError as import_error:
         "Qwen3.5 model class is unavailable. Please install transformers >= 5.2.0 or check your transformers version."
     ) from import_error
 
+from starVLA.model.modules.vlm.visual_selector import LightVLAGumbelSelector
+
 logger = initialize_overwatch(__name__)
 
 IGNORE_INDEX = -100
@@ -86,20 +88,173 @@ class _QWen3_5_VL_Interface(nn.Module):
             self._ACTION_TOKEN_MIN = _ACTION_TOKEN_MIN
             self._ACTION_TOKEN_MAX = _ACTION_TOKEN_MAX
 
+        # visual selector (optional, off by default — does not touch forward)
+        vsel_cfg = qwenvl_config.get("visual_selector", {})
+        self.use_visual_selector = vsel_cfg.get("use_visual_selector", False)
+        self._vsel_debug = vsel_cfg.get("visual_selector_debug", False)
+        self.last_selector_info = None
+        if self.use_visual_selector:
+            selector_type = vsel_cfg.get("visual_selector_type", "lightvla_gumbel")
+            if selector_type == "lightvla_gumbel":
+                self.visual_selector = LightVLAGumbelSelector(
+                    cross_attn_tau=vsel_cfg.get("visual_selector_tau", 0.1),
+                    gumbel_tau=vsel_cfg.get("visual_selector_gumbel_tau", 0.5),
+                    hard=vsel_cfg.get("visual_selector_hard", True),
+                )
+            else:
+                raise ValueError(f"Unknown visual_selector_type: {selector_type}")
+        else:
+            self.visual_selector = None
+
     def forward(
         self,
         **kwargs,
     ) -> CausalLMOutputWithPast:
         """
         Forward pass delegating to underlying Qwen3.5-VL backbone.
-        """
 
-        with torch.autocast("cuda", dtype=torch.bfloat16):
-            outputs = self.model(
-                **kwargs,
+        If use_visual_selector=True, a forward hook is temporarily placed on
+        ``self.model.model.visual`` to re-weight vision tokens via
+        language-conditioned selection before they enter the Transformer.
+        The hook is removed immediately after the call so subsequent
+        forward passes are unaffected.
+        """
+        hook_handle = None
+        if (
+            self.use_visual_selector
+            and self.visual_selector is not None
+            and kwargs.get("pixel_values") is not None
+        ):
+            input_ids = kwargs["input_ids"]
+            B = input_ids.shape[0]
+
+            # pre-compute language embeddings for the selector
+            with torch.autocast("cuda", dtype=torch.bfloat16):
+                language_embeds = self.model.model.embed_tokens(input_ids)
+
+            sel_ref = self.visual_selector
+            debug_flag = self._vsel_debug
+
+            # per-sample visual-token counts: count IMAGE_TOKEN_INDEX per sample
+            sample_patch_counts = (input_ids == IMAGE_TOKEN_INDEX).sum(dim=1).tolist()
+            grid_thw = kwargs.get("image_grid_thw", kwargs.get("grid_thw"))
+
+            def _visual_hook(module, input, output):
+                """Intercept visual encoder output, run selector, return modified."""
+                if isinstance(output, tuple):
+                    vision = output[0]
+                    rest = output[1:]
+                else:
+                    vision = output
+                    rest = ()
+
+                total_p, H_dim = vision.shape
+
+                # every sample must have the same patch count
+                unique_counts = set(sample_patch_counts)
+                if len(unique_counts) != 1:
+                    if debug_flag:
+                        logger.warning(
+                            "visual_selector skipped: samples have different patch counts %s "
+                            "(grid_thw=%s)",
+                            sample_patch_counts,
+                            grid_thw.tolist() if grid_thw is not None else "None",
+                        )
+                    return output
+
+                Nv = sample_patch_counts[0]
+                if Nv == 0:
+                    return output  # no vision tokens
+
+                # safety: sum must match total vision tokens
+                if sum(sample_patch_counts) != total_p:
+                    if debug_flag:
+                        logger.warning(
+                            "visual_selector skipped: patch count mismatch "
+                            "(input_ids sum=%d vision output total=%d)",
+                            sum(sample_patch_counts), total_p,
+                        )
+                    return output
+
+                vision_b = vision.view(B, Nv, H_dim)
+                selected, info = sel_ref(vision_b, language_embeds)
+
+                # store slim, detached, CPU-safe selector_info
+                self.last_selector_info = {
+                    k: (v.detach().cpu() if torch.is_tensor(v) else v)
+                    for k, v in info.items()
+                    if k not in ("score_matrix", "selection_shape")
+                }
+                # score_matrix → scalar summaries only (if present)
+                sm = info.get("score_matrix")
+                if sm is not None:
+                    sm_d = sm.detach()
+                    self.last_selector_info["score_mean"] = sm_d.mean().cpu()
+                    self.last_selector_info["score_max"] = sm_d.max().cpu()
+                    self.last_selector_info["score_min"] = sm_d.min().cpu()
+                self.last_selector_info["sample_patches_per_image"] = sample_patch_counts
+
+                vision_flat = selected.view(total_p, H_dim)
+
+                if rest:
+                    return (vision_flat,) + rest
+                return vision_flat
+
+            hook_handle = self.model.model.visual.register_forward_hook(
+                _visual_hook
             )
 
+        try:
+            with torch.autocast("cuda", dtype=torch.bfloat16):
+                outputs = self.model(
+                    **kwargs,
+                )
+        finally:
+            if hook_handle is not None:
+                hook_handle.remove()
+
         return outputs
+
+    def get_input_embeddings(self, qwen_inputs):
+        """
+        Extract raw vision and text embeddings before they enter the Transformer.
+
+        Vision images go through the visual encoder and projection, defined by
+        Qwen3.5 Model; text tokens go through the embedding lookup.
+
+        Tokens at IMAGE_TOKEN_INDEX positions (248056) in the text are
+        placeholders whose embeddings will be replaced by vision features
+        inside the model forward.
+
+        Args:
+            qwen_inputs: dict from build_qwenvl_inputs(), must contain
+                ``pixel_values``, ``grid_thw`` (or ``image_grid_thw``),
+                and ``input_ids``.
+
+        Returns:
+            vision_embeds: (total_patches, hidden_size) or None if no images
+            text_embeds:   (B, seq_len, hidden_size)
+        """
+        pixel_values = qwen_inputs.get("pixel_values", None)
+        grid_thw = qwen_inputs.get("image_grid_thw", qwen_inputs.get("grid_thw", None))
+        input_ids = qwen_inputs["input_ids"]
+
+        # vision embedding
+        if pixel_values is not None and pixel_values.numel() > 0:
+            with torch.autocast("cuda", dtype=torch.bfloat16):
+                vision_outputs = self.model.model.visual(pixel_values, grid_thw=grid_thw)
+            if isinstance(vision_outputs, tuple):
+                vision_embeds = vision_outputs[0]
+            else:
+                vision_embeds = vision_outputs
+        else:
+            vision_embeds = None
+
+        # text embedding (lookup table)
+        with torch.autocast("cuda", dtype=torch.bfloat16):
+            text_embeds_all = self.model.model.embed_tokens(input_ids)
+
+        return vision_embeds, text_embeds_all
 
     def generate(
         self,
